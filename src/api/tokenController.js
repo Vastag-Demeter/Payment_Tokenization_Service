@@ -1,5 +1,16 @@
 const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+let prisma;
+
+// Ezt a függvényt hívjuk meg az Express szerver indítása után,
+// hogy biztosan betöltődjön a DATABASE_URL.
+function getPrismaClient() {
+  if (!prisma) {
+    // A kliens csak akkor jön létre, ha az index.js futtatta a dotenv-et.
+    prisma = new PrismaClient();
+  }
+  return prisma;
+}
+
 const encryptionService = require("../services/encryptionService");
 
 async function tokenizePaymentData(req, res) {
@@ -41,3 +52,42 @@ async function tokenizePaymentData(req, res) {
     res.status(500).json({ error: "Failed to process tokenization request. " });
   }
 }
+
+async function fetchPaymentData(req, res) {
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ error: "Missing token in request body." });
+  }
+
+  try {
+    const tokenRecord = await prisma.paymentToken.findUnique({
+      where: { token: token },
+      select: { encrypted_data: true, is_active: true },
+    });
+
+    if (!tokenRecord || !tokenRecord.is_active) {
+      return res
+        .status(404)
+        .json({ error: "Token not found or is inactive. " });
+    }
+
+    const decryptedJson = encryptionService.decrypt(tokenRecord.encrypted_data);
+    const decryptedData = JSON.parse(decryptedJson);
+
+    res.status(200).json({
+      message: "Token succesfully de-tokenized. ",
+      decryptedData: decryptedData,
+    });
+  } catch (error) {
+    console.error("[ERROR]: Error during de-tokenization:", error.message);
+    res
+      .status(500)
+      .json({ error: "Failed to decrypt data or internal error." });
+  }
+}
+
+module.exports = {
+  tokenizePaymentData,
+  fetchPaymentData,
+};
