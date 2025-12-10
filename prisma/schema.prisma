@@ -1,0 +1,28 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model PaymentToken {
+    id Int @id @default(autoincrement())
+    token String @unique @db.VarChar(32)
+    encrypted_data Bytes @db.ByteA
+    user_id BigInt
+    last_four_digits String @db.Char(4)
+    expiration_date String @db.Char(5)
+    is_active Boolean @default(true)
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
+
+    @@map("payment_tokens")
+}

@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  token_vault_db:
+    image: postgres:15-alpine
+    container_name: token_vault_postgres
+
+    environment:
+      POSTGRES_USER: ${TOKEN_DB_USER}
+      POSTGRES_PASSWORD: ${TOKEN_DB_PASSWORD}
+      POSTGRES_DB: ${TOKEN_DB_NAME}
+    ports:
+      - "${TOKEN_DB_PORT}:5432"
+    volumes:
+      - token-db-data:/var/lib/postgresql/data
+
+    restart: always
+
+volumes:
+  token-db-data:
+    driver: local
