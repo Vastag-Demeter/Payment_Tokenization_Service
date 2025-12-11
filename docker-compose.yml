@@ -16,6 +16,21 @@ services:
 
     restart: always
 
+  token_api:
+    build: .
+    container_name: token_vault_api
+
+    environment:
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      PORT: 3005
+
+      DATABASE_URL: postgresql://${TOKEN_DB_USER}:${TOKEN_DB_PASSWORD}@token_vault_db:5432/${TOKEN_DB_NAME}
+    ports:
+      - "3005:3005"
+    depends_on:
+      - token_vault_db
+    restart: always
+
 volumes:
   token-db-data:
     driver: local

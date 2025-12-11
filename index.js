@@ -1,7 +1,5 @@
 require("dotenv").config();
-
 const express = require("express");
-const bodyParser = require("body-parser");
 
 const {
   tokenizePaymentData,
@@ -11,10 +9,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const API_VERSION = "/api/v1";
 
-app.use(bodyParser.json());
+app.use(express.json());
 
 app.get("/", (req, res) => {
-  res.status.json({
+  res.status(200).json({
     message: "Payment Tokenization Service is Running",
     status: "OK",
   });
@@ -32,5 +30,6 @@ app.listen(PORT, () => {
       process.env.ENCRYPTION_KEY ? "Loaded" : "MISSING"
     }`
   );
+  console.log(process.env.DATABASE_URL);
   console.log(`======================================================`);
 });

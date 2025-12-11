@@ -1,21 +1,15 @@
 const { PrismaClient } = require("@prisma/client");
-let prisma;
-
-// Ezt a függvényt hívjuk meg az Express szerver indítása után,
-// hogy biztosan betöltődjön a DATABASE_URL.
-function getPrismaClient() {
-  if (!prisma) {
-    // A kliens csak akkor jön létre, ha az index.js futtatta a dotenv-et.
-    prisma = new PrismaClient();
-  }
-  return prisma;
-}
+const { PrismaPg } = require("@prisma/adapter-pg");
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
 
 const encryptionService = require("../services/encryptionService");
-
 async function tokenizePaymentData(req, res) {
-  const { cardNumber, cvv, expirationDate, userID } = req.body;
-
+  //   const { cardNumber, cvv, expirationDate, userID } = req.body;
+  const cardNumber = req.body.cardNumber;
+  const cvv = req.body.cvv;
+  const expirationDate = req.body.expirationDate;
+  const userID = req.body.userID;
   if (!cardNumber || !cvv || !expirationDate || !userID) {
     return res
       .status(400)
@@ -26,7 +20,6 @@ async function tokenizePaymentData(req, res) {
     const token = encryptionService.generateToken();
     const sensitiveDataJson = JSON.stringify({ cardNumber, cvv });
     const encryptedPayLoad = encryptionService.encrypt(sensitiveDataJson);
-
     const savedRecord = await prisma.paymentToken.create({
       data: {
         token: token,
