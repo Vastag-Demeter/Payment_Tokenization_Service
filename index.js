@@ -1,15 +1,29 @@
 require("dotenv").config();
 const express = require("express");
-
 const {
   tokenizePaymentData,
   fetchPaymentData,
+  ActivateCard,
+  DeactivateCard,
 } = require("./src/api/tokenController");
+const apiKeyAuth = require("./src/middleware/apiKeyAuth");
+const {
+  globalLimiter,
+  fetchLimiter,
+  tokenizeLimiter,
+} = require("./src/middleware/rateLimiter");
+
+const fs = require("fs");
+const https = require("https");
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const API_VERSION = "/api/v1";
 
 app.use(express.json());
+app.use(globalLimiter);
+
+const protect = apiKeyAuth({ headerName: "x-api-key" });
 
 app.get("/", (req, res) => {
   res.status(200).json({
@@ -18,18 +32,24 @@ app.get("/", (req, res) => {
   });
 });
 
-app.post(`${API_VERSION}/tokenize`, tokenizePaymentData);
+app.post(
+  `${API_VERSION}/tokenize`,
+  protect,
+  tokenizeLimiter,
+  tokenizePaymentData
+);
 
-app.post(`${API_VERSION}/fetch-pan`, fetchPaymentData);
+app.post(`${API_VERSION}/fetch-pan`, protect, fetchLimiter, fetchPaymentData);
+app.put(`${API_VERSION}/activate`, protect, tokenizeLimiter, ActivateCard);
+app.put(`${API_VERSION}/deactivate`, protect, tokenizeLimiter, DeactivateCard);
 
-app.listen(PORT, () => {
+const options = {
+  key: fs.readFileSync("key.pem"),
+  cert: fs.readFileSync("cert.pem"),
+};
+
+https.createServer(options, app).listen(PORT, () => {
   console.log(`\n======================================================`);
-  console.log(`🚀 Tokenization Service listening on port ${PORT}`);
-  console.log(
-    `Encryption Key Status: ${
-      process.env.ENCRYPTION_KEY ? "Loaded" : "MISSING"
-    }`
-  );
-  console.log(process.env.DATABASE_URL);
+  console.log(`Tokenization Service listening on port ${PORT}`);
   console.log(`======================================================`);
 });
