@@ -53,18 +53,8 @@ const options = {
   cert: fs.readFileSync("certs/cert.pem"),
 };
 
-async function startServer() {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    console.log("✅ Adatbázis kapcsolat sikeresen ellenőrizve.");
-  } catch (error) {
-    console.error("Hiba az adatbázis csatlakozás során!");
-    console.error("Hiba oka:", error.message);
-  }
-  https.createServer(options, app).listen(PORT, () => {
-    console.log(`\n======================================================`);
-    console.log(`Tokenization Service listening on port ${PORT}`);
-    console.log(`======================================================`);
-  });
-}
-startServer();
+https.createServer(options, app).listen(PORT, () => {
+  console.log(`\n======================================================`);
+  console.log(`Tokenization Service listening on port ${PORT}`);
+  console.log(`======================================================`);
+});
