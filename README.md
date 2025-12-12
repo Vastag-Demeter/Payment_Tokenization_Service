@@ -1,4 +1,4 @@
-# Payment_Tokenization_Service# Payment Tokenization Service (Fizetési Tokenizáló Szolgáltatás)
+# Payment Tokenization Service (Fizetési Tokenizáló Szolgáltatás)
 
 ## NE HASZNÁLD ÉLES KÖRNYEZETBEN! (Development / Tesztelés)
 
