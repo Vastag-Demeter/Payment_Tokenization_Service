@@ -1,6 +1,6 @@
 # Payment_Tokenization_Service# Payment Tokenization Service (Fizetési Tokenizáló Szolgáltatás)
 
-##NE HASZNÁLD ÉLES KÖRNYEZETBEN! (Development / Tesztelés)
+## NE HASZNÁLD ÉLES KÖRNYEZETBEN! (Development / Tesztelés)
 
 **Figyelmeztetés:** Ez a szolgáltatás kizárólag egyéni tanulási és fejlesztési célokat szolgál. **Titkosítási és biztonsági szempontból NEM alkalmas éles (production) környezetben való használatra, és nem felel meg a PCI-DSS előírásoknak.**
 
