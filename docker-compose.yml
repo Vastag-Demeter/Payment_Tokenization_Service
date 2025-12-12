@@ -30,48 +30,7 @@ services:
     image: vastagdemeter/token-vault:latest
     container_name: token_vault_api
     environment:
-      PORT: ${PORT}version: "3.8"
-
-networks:
-  token-network:
-
-services:
-  token_vault_db:
-    image: postgres:15-alpine
-    container_name: token_vault_postgres
-    environment:
-      POSTGRES_USER: ${TOKEN_DB_USER}
-      POSTGRES_PASSWORD: ${TOKEN_DB_PASSWORD}
-      POSTGRES_DB: ${TOKEN_DB_NAME}
-    ports:
-      - "${TOKEN_DB_PORT}:5432"
-    volumes:
-      - ./token-db-data:/var/lib/postgresql/data
-    networks:
-      - token-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${TOKEN_DB_USER} -d ${TOKEN_DB_NAME}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    restart: always
-
-  token_api:
-    image: vastagdemeter/token-vault:latest
-    container_name: token_vault_api
-    env_file:
-      - .env
-    environment:
-      DATABASE_URL: postgresql://${TOKEN_DB_USER}:${TOKEN_DB_PASSWORD}@token_vault_db:5432/${TOKEN_DB_NAME}
-    ports:
-      - "3005:3005"
-    depends_on:
-      token_vault_db:
-        condition: service_healthy
-    networks:
-      - token-network
-    restart: always
-
+      PORT: ${PORT}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       TOKEN_VAULT_API_KEYS: ${TOKEN_VAULT_API_KEYS}
       WEBHOOK_SERVICE_KEY: ${WEBHOOK_SERVICE_KEY}

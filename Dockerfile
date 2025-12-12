@@ -15,6 +15,6 @@ ENV DATABASE_URL=${DATABASE_URL}
 
 RUN npx prisma generate
 
-EXPOSE 3005
+# EXPOSE 3005
 
 CMD [ "node", "index.js" ]
