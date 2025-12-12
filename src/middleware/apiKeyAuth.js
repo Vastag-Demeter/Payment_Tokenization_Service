@@ -63,9 +63,7 @@ function apiKeyAuth(options = {}) {
       serviceName = "dummy_bank";
 
     req.auth = { apiKeyPresent: true, serviceName };
-    console.log(
-      `[AUTH]: Token given for service ${serviceName} from IP ${req.ip}`
-    );
+    console.log(`[AUTH]: Service ${serviceName} made call from IP ${req.ip}`);
 
     next();
   };

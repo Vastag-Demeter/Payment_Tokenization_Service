@@ -179,7 +179,7 @@ const ActivateCard = async (req, res) => {
         .json({ error: "Token not found or is already active" });
     }
 
-    const updateTokenRecord = await prisma.update({
+    const updateTokenRecord = await prisma.paymentToken.update({
       where: { token: body_token },
       data: { is_active: true },
     });

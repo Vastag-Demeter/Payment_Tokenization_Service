@@ -1,3 +1,8 @@
+const { PrismaClient } = require("@prisma/client");
+const { PrismaPg } = require("@prisma/adapter-pg");
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
+
 require("dotenv").config();
 const express = require("express");
 const {
@@ -44,12 +49,22 @@ app.put(`${API_VERSION}/activate`, protect, tokenizeLimiter, ActivateCard);
 app.put(`${API_VERSION}/deactivate`, protect, tokenizeLimiter, DeactivateCard);
 
 const options = {
-  key: fs.readFileSync("key.pem"),
-  cert: fs.readFileSync("cert.pem"),
+  key: fs.readFileSync("certs/key.pem"),
+  cert: fs.readFileSync("certs/cert.pem"),
 };
 
-https.createServer(options, app).listen(PORT, () => {
-  console.log(`\n======================================================`);
-  console.log(`Tokenization Service listening on port ${PORT}`);
-  console.log(`======================================================`);
-});
+async function startServer() {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    console.log("✅ Adatbázis kapcsolat sikeresen ellenőrizve.");
+  } catch (error) {
+    console.error("Hiba az adatbázis csatlakozás során!");
+    console.error("Hiba oka:", error.message);
+  }
+  https.createServer(options, app).listen(PORT, () => {
+    console.log(`\n======================================================`);
+    console.log(`Tokenization Service listening on port ${PORT}`);
+    console.log(`======================================================`);
+  });
+}
+startServer();
