@@ -1,8 +1,6 @@
 token-db-data/
 generated/
-
-
-
+.vscode
 # Logs
 logs
 *.log
