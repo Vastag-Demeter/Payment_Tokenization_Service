@@ -27,7 +27,7 @@ services:
     restart: always
 
   token_api:
-    build: .
+    image: vastagdemeter/token-vault:latest
     container_name: token_vault_api
     environment:
       PORT: ${PORT}

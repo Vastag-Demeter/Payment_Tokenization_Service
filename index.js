@@ -3,6 +3,7 @@ require("dotenv").config(); // 1. EZ LEGYEN AZ ELSŐ SOR!
 const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const { Pool } = require("pg"); // Kell a pg Pool az adapterhez
+const cors = require("cors");
 const apiKeyAuth = require("./src/middleware/apiKeyAuth");
 const {
   tokenizeLimiter,
@@ -15,7 +16,7 @@ const {
   DeactivateCard,
   ActivateCard,
 } = require("./src/api/tokenController");
-// Jobb inicializálás az adapterhez
+
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
@@ -25,17 +26,22 @@ const fs = require("fs");
 const https = require("https");
 const path = require("path");
 
-// ... a többi require (tokenizePaymentData, stb.) marad ...
-
 const app = express();
+const corsOptions = {
+  origin: "http://localhost:3000",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // OPTIONS hozzáadva
+  allowedHeaders: ["Content-Type", "x-api-key"],
+  optionsSuccessStatus: 200, // Fontos a Preflight sikeréhez
+};
+
+app.use(cors(corsOptions));
+
+app.options(/(.*)/, cors(corsOptions));
 const PORT = process.env.PORT || 3000;
 const API_VERSION = "/api/v1";
 
 app.use(express.json());
 
-// ... route-ok maradnak ...
-
-// BIZTONSÁGI ELLENŐRZÉS A CERT-EKRE
 const certPath = path.join(__dirname, "certs/cert.pem");
 const keyPath = path.join(__dirname, "certs/key.pem");
 const protect = apiKeyAuth({ headerName: "x-api-key" });
@@ -65,12 +71,12 @@ if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
   };
 
   https.createServer(options, app).listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 HTTPS Server running on port ${PORT}`);
+    console.log(`HTTPS Server running on port ${PORT}`);
   });
 } else {
   // Ha nincs cert (pl. teszt környezet), induljon el sima HTTP-n,
   // hogy ne omoljon össze a konténer!
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`⚠️ Certs not found! Running on HTTP on port ${PORT}`);
+    console.log(`Certs not found! Running on HTTP on port ${PORT}`);
   });
 }
