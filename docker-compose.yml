@@ -1,12 +1,12 @@
-version: "3.8"
-
 networks:
   token-network:
+volumes:
+  pgdata:
 
 services:
   token_vault_db:
     image: postgres:15-alpine
-    container_name: token_vault_postgres
+    container_name: token_vault_db
     environment:
       POSTGRES_USER: ${TOKEN_DB_USER}
       POSTGRES_PASSWORD: ${TOKEN_DB_PASSWORD}
@@ -16,7 +16,7 @@ services:
     expose:
       - ${TOKEN_DB_PORT}
     volumes:
-      - ./token-db-data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     networks:
       - token-network
     healthcheck:
@@ -27,7 +27,7 @@ services:
     restart: always
 
   token_api:
-    image: vastagdemeter/token-vault:latest
+    build: .
     container_name: token_vault_api
     environment:
       PORT: ${PORT}

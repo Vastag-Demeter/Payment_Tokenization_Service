@@ -1,12 +1,10 @@
 const crypto = require("crypto");
-
 const IV_LENGTH = 16;
 const ALGORITHM = "aes-256-gcm";
 const KEY = process.env.ENCRYPTION_KEY;
-
 if (!KEY || Buffer.byteLength(KEY, "hex") !== 32) {
   throw new Error(
-    "[CRITICAL_ERROR]: Encryption key must be exactly 32 bytes (64 HEX characters)! Check your .env file."
+    "[CRITICAL_ERROR]: Encryption key must be exactly 32 bytes (64 HEX characters)! Check your .env file.",
   );
 }
 
@@ -35,14 +33,14 @@ function decrypt(fullEncryptedPayload) {
   const decipher = crypto.createDecipheriv(
     ALGORITHM,
     Buffer.from(KEY, "hex"),
-    iv
+    iv,
   );
   decipher.setAuthTag(tag);
 
   let decrypted = decipher.update(
     encryptedDataBuffer.toString("hex"),
     "hex",
-    "utf8"
+    "utf8",
   );
   decrypted += decipher.final("utf-8");
 
