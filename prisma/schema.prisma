@@ -12,16 +12,37 @@ datasource db {
   provider = "postgresql"
 }
 
+model AuthorizedService {
+    id Int @id @default(autoincrement())
+    name String @unique
+    api_key String @unique @db.VarChar(64)
+
+    can_tokenize Boolean @default(true)
+    can_fetch Boolean @default(false)
+    can_manage Boolean @default(false)
+
+    is_active Boolean @default(true)
+    created_at DateTime @default(now())
+    
+    tokens PaymentToken[]
+    @@map("authorized_services")
+}
+
+
 model PaymentToken {
     id Int @id @default(autoincrement())
     token String @unique @db.VarChar(32)
     encrypted_data Bytes @db.ByteA
-    user_id BigInt
+    card_holder_name String? @db.VarChar(100)
     last_four_digits String @db.Char(4)
     expiration_date String @db.Char(5)
+
+    service_id Int
+
     is_active Boolean @default(true)
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt
 
+    service AuthorizedService @relation(fields: [service_id], references: [id])
     @@map("payment_tokens")
 }
