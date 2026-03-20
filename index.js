@@ -24,6 +24,13 @@ const {
   toggleTokenStatus,
 } = require("./src/api/tokenController");
 
+const {
+  getServices,
+  getServiceById,
+  addService,
+  updateService,
+  changeServiceActiveness,
+} = require("./src/api/serviceController");
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
@@ -59,6 +66,7 @@ app.get("/", (req, res) => {
   });
 });
 
+//Tokenization functions
 app.post(
   `/tokenize`,
   protect,
@@ -71,6 +79,19 @@ app.put(`/activate`, protect, tokenizeLimiter, ActivateCard);
 app.put(`/deactivate`, protect, tokenizeLimiter, DeactivateCard);
 app.get("/getTokenData", protect, authCanTokenize, getTokenData);
 app.put("/toggleTokenStatus", protect, authCanTokenize, toggleTokenStatus);
+
+//Service functions
+app.get("/getServices", protect, authCanManage, getServices);
+app.get("/getServiceById", protect, authCanManage, getServiceById);
+app.post("/addService", protect, authCanManage, addService);
+app.put("/updateService", protect, authCanManage, updateService);
+app.put(
+  "/changeServiceActiveness",
+  protect,
+  authCanManage,
+  changeServiceActiveness,
+);
+
 if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
   const options = {
     key: fs.readFileSync(keyPath),

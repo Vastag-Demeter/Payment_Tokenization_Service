@@ -25,7 +25,6 @@ function apiKeyAuth(options = {}) {
 
   return async (req, res, next) => {
     const provided = (req.header(headerName) || "").trim();
-
     if (!provided) {
       console.warn(
         `[AUTH]: Missing API key from ${req.ip} ${req.method} ${req.originalUrl}`,
@@ -40,7 +39,7 @@ function apiKeyAuth(options = {}) {
           is_active: true,
         },
       });
-      if (!service || !safeEqual(service.api_key, provided)) {
+      if (!service) {
         console.warn(
           `[AUTH]: Invalid or inactive API key attempt from ${req.ip}`,
         );
