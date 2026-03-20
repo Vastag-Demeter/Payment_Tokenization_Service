@@ -4,7 +4,12 @@ const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const { Pool } = require("pg"); // Kell a pg Pool az adapterhez
 const cors = require("cors");
-const apiKeyAuth = require("./src/middleware/apiKeyAuth");
+const {
+  apiKeyAuth,
+  authCanFetch,
+  authCanManage,
+  authCanTokenize,
+} = require("./src/middleware/apiKeyAuth");
 const {
   tokenizeLimiter,
   globalLimiter,
@@ -15,6 +20,8 @@ const {
   fetchPaymentData,
   DeactivateCard,
   ActivateCard,
+  getTokenData,
+  toggleTokenStatus,
 } = require("./src/api/tokenController");
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -38,7 +45,6 @@ app.use(cors(corsOptions));
 
 app.options(/(.*)/, cors(corsOptions));
 const PORT = process.env.PORT || 3000;
-const API_VERSION = "/api/v1";
 
 app.use(express.json());
 
@@ -54,16 +60,17 @@ app.get("/", (req, res) => {
 });
 
 app.post(
-  `${API_VERSION}/tokenize`,
+  `/tokenize`,
   protect,
   tokenizeLimiter,
+  authCanTokenize,
   tokenizePaymentData,
 );
-
-app.post(`${API_VERSION}/fetch-pan`, protect, fetchLimiter, fetchPaymentData);
-app.put(`${API_VERSION}/activate`, protect, tokenizeLimiter, ActivateCard);
-app.put(`${API_VERSION}/deactivate`, protect, tokenizeLimiter, DeactivateCard);
-
+app.get(`/fetch`, protect, fetchLimiter, authCanFetch, fetchPaymentData);
+app.put(`/activate`, protect, tokenizeLimiter, ActivateCard);
+app.put(`/deactivate`, protect, tokenizeLimiter, DeactivateCard);
+app.get("/getTokenData", protect, authCanTokenize, getTokenData);
+app.put("/toggleTokenStatus", protect, authCanTokenize, toggleTokenStatus);
 if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
   const options = {
     key: fs.readFileSync(keyPath),
@@ -74,8 +81,6 @@ if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
     console.log(`HTTPS Server running on port ${PORT}`);
   });
 } else {
-  // Ha nincs cert (pl. teszt környezet), induljon el sima HTTP-n,
-  // hogy ne omoljon össze a konténer!
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Certs not found! Running on HTTP on port ${PORT}`);
   });

@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-
+const prisma = require("../prisma");
 function getAllowedKeys() {
   const multi = process.env.TOKEN_VAULT_API_KEYS;
   return multi
@@ -22,51 +22,68 @@ function safeEqual(a, b) {
 
 function apiKeyAuth(options = {}) {
   const headerName = (options.headerName || "x-api-key").toLowerCase();
-  const allowedKeys = getAllowedKeys();
-  if (!allowedKeys.length) {
-    console.warn(
-      "[AUTH]: No API keys configured for Token Vault (TOKEN_VAULT_API_KEYS)"
-    );
-  }
 
-  return (req, res, next) => {
+  return async (req, res, next) => {
     const provided = (req.header(headerName) || "").trim();
 
     if (!provided) {
       console.warn(
-        `[AUTH]: Missing API key from ${req.ip} ${req.method} ${req.originalUrl}`
+        `[AUTH]: Missing API key from ${req.ip} ${req.method} ${req.originalUrl}`,
       );
       return res.status(401).json({ error: "Missing API key" });
     }
 
-    let matchedKey = null;
-    for (const key of allowedKeys) {
-      if (safeEqual(key, provided)) {
-        matchedKey = key;
-        break;
+    try {
+      const service = await prisma.authorizedService.findUnique({
+        where: {
+          api_key: provided,
+          is_active: true,
+        },
+      });
+      if (!service || !safeEqual(service.api_key, provided)) {
+        console.warn(
+          `[AUTH]: Invalid or inactive API key attempt from ${req.ip}`,
+        );
+        return res.status(401).json({ error: "Invalid API key" });
       }
-    }
 
-    if (!matchedKey) {
-      console.warn(
-        `[AUTH] Invalid API key attempt from ${req.ip} ${req.method} ${req.originalUrl}`
+      req.service = service;
+      console.log(
+        `[AUTH]: Service "${service.name}" authenticated from IP ${req.ip}`,
       );
-      return res.status(401).json({ error: "Invalid API key" });
+      next();
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ error: "Internal server error." });
     }
-
-    let serviceName = "unknown";
-    if (safeEqual(provided, process.env.WEBHOOK_SERVICE_KEY))
-      serviceName = "webshop";
-    else if (safeEqual(provided, process.env.TRANSACTION_SERVICE_KEY))
-      serviceName = "transaction";
-    else if (safeEqual(provided, process.env.DUMMY_BANK_KEY))
-      serviceName = "dummy_bank";
-
-    req.auth = { apiKeyPresent: true, serviceName };
-    console.log(`[AUTH]: Service ${serviceName} made call from IP ${req.ip}`);
-
-    next();
   };
 }
 
-module.exports = apiKeyAuth;
+const authCanManage = async (req, res, next) => {
+  const service = req.service;
+  if (!service || !service.can_manage)
+    return res.status(403).json({ error: "Not authorized to do this action." });
+  next();
+};
+
+const authCanFetch = async (req, res, next) => {
+  const service = req.service;
+  if (!service || !service.can_fetch)
+    return res.status(403).json({ error: "Not authorized to do this action." });
+  next();
+};
+
+const authCanTokenize = async (req, res, next) => {
+  const service = req.service;
+  if (!service || !service.can_tokenize)
+    return res.status(403).json({ error: "Not authorized to do this action." });
+  next();
+};
+
+module.exports = {
+  apiKeyAuth,
+  authCanManage,
+  authCanFetch,
+  authCanFetch,
+  authCanTokenize,
+};

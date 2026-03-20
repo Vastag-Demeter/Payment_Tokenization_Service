@@ -29,20 +29,32 @@ model AuthorizedService {
 }
 
 
-model PaymentToken {
+model Card {
     id Int @id @default(autoincrement())
-    token String @unique @db.VarChar(32)
+    fingerprint String @unique
     encrypted_data Bytes @db.ByteA
-    card_holder_name String? @db.VarChar(100)
+    card_holder_name String @db.VarChar(100)
     last_four_digits String @db.Char(4)
     expiration_date String @db.Char(5)
-
-    service_id Int
-
+    type String
     is_active Boolean @default(true)
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt
 
+    tokens PaymentToken[]
+    @@map("cards")
+}
+
+model PaymentToken {
+    id Int @id @default(autoincrement())
+    token String @unique
+    card_id Int 
+    service_id Int
+    is_active Boolean @default(true)
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
+
+    card Card @relation(fields: [card_id], references: [id])
     service AuthorizedService @relation(fields: [service_id], references: [id])
     @@map("payment_tokens")
 }

@@ -1,11 +1,12 @@
-const { PrismaClient } = require("@prisma/client");
-const { PrismaPg } = require("@prisma/adapter-pg");
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter });
+const prisma = require("../prisma");
+const crypto = require("crypto");
 
 const encryptionService = require("../services/encryptionService");
 
 function detectCardType(cardNumber) {
+  if (!cardNumber || typeof cardNumber !== "string") {
+    return "Unknown";
+  }
   const cleaned = cardNumber.replace(/\D/g, "");
 
   if (/^4\d{12,18}$/.test(cleaned)) return "VISA";
@@ -18,46 +19,105 @@ function detectCardType(cardNumber) {
   return "UNKNOWN";
 }
 
+const generateFingerPrint = (cardNumber) => {
+  const cleanNumber = cardNumber.replace(/\s+/g, "");
+  return crypto.createHash("sha256").update(cleanNumber).digest("hex");
+};
+
+const isValidCard = (cardNumber) => {
+  const digits = cardNumber.replace(/\s+/g, "").split("").map(Number);
+  let sum = 0;
+  let isSecond = false;
+
+  for (let i = digits.length - 1; i >= 0; i--) {
+    let d = digits[i];
+    if (isSecond) {
+      d *= 2;
+      if (d > 9) d -= 9;
+    }
+    sum += d;
+    isSecond = !isSecond;
+  }
+  return sum % 10 === 0;
+};
+
+const isValidExpiryDate = (expiryDate) => {
+  const regex = /^(0[1-9]|1[0-2])\/?([0-9]{2})$/;
+  if (!regex.test(expiryDate)) return false;
+
+  const [month, year] = expiryDate.split("/").map(Number);
+  const fullYear = 2000 + year;
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  if (fullYear < currentYear) return false;
+  if (fullYear === currentYear && month < currentMonth) return false;
+  return true;
+};
+
 async function tokenizePaymentData(req, res) {
-  const cardNumber = req.body.cardNumber;
-  const expirationDate = req.body.expirationDate;
-  const userID = req.body.userID;
-  if (!cardNumber || !expirationDate || !userID) {
+  const { card_number, expiry_date, holder_name } = req.body;
+  const serviceID = req.service.id;
+  const cleanNumber = card_number.replace(/\s+/g, "");
+
+  if (!cleanNumber || !expiry_date || !holder_name) {
+    return res.status(400).json({ error: "Missing required payment data." });
+  }
+  if (!isValidCard(cleanNumber))
+    return res.status(400).json({ error: "Card number is not valid." });
+
+  if (!isValidExpiryDate(expiry_date))
     return res
       .status(400)
-      .json({ error: "Missing required payment data or User ID." });
-  }
-
+      .json({ error: "Expiration date must be in format: MM/YY" });
   try {
-    const token = encryptionService.generateToken();
-    const cardType = detectCardType(cardNumber);
-    const sensitiveDataJson = JSON.stringify({
-      cardNumber,
-      expirationDate,
-      card_type: cardType,
-      userID,
-    });
-    const encryptedPayLoad = encryptionService.encrypt(sensitiveDataJson);
-    const savedRecord = await prisma.paymentToken.create({
-      data: {
-        token: token,
-        encrypted_data: encryptedPayLoad,
-        user_id: userID,
-        last_four_digits: cardNumber.slice(-4),
-        expiration_date: expirationDate,
-        is_active: true,
+    const fingerprint = generateFingerPrint(cleanNumber);
+
+    let card = await prisma.card.findUnique({
+      where: {
+        fingerprint,
       },
-      select: {
-        token: true,
-        last_four_digits: true,
-        expiration_date: true,
+    });
+
+    if (!card) {
+      const sensitiveDataJson = JSON.stringify({
+        cleanNumber,
+      });
+      const encryptedPayLoad = encryptionService.encrypt(sensitiveDataJson);
+      const type = detectCardType(cleanNumber);
+      card = await prisma.card.create({
+        data: {
+          fingerprint: fingerprint,
+          encrypted_data: encryptedPayLoad,
+          expiration_date: expiry_date,
+          last_four_digits: card_number.slice(-4),
+          card_holder_name: holder_name,
+          type: type,
+          is_active: true,
+        },
+      });
+    }
+
+    const newToken = crypto.randomBytes(16).toString("hex");
+
+    await prisma.paymentToken.create;
+    const paymentToken = await prisma.paymentToken.create({
+      data: {
+        token: newToken,
+        card_id: card.id,
+        service_id: serviceID,
+        is_active: true,
       },
     });
 
     res.status(201).json({
-      message: "Payment data succesfully tokenized.",
-      tokenData: savedRecord,
-      type: cardType,
+      msg: "Card tokenized successfully.",
+      data: {
+        token: paymentToken.token,
+        last_four: card.last_four_digits,
+        expiry_date: card.expiration_date,
+        type: card.type,
+      },
     });
   } catch (error) {
     console.error("[ERROR]: Error during tokenization: ", error.message);
@@ -65,16 +125,45 @@ async function tokenizePaymentData(req, res) {
   }
 }
 
-async function fetchPaymentData(req, res) {
-  const serviceName = req.auth.serviceName;
-  const allowedServices = ["dummy_bank", "transaction"];
+async function getTokenData(req, res) {
+  const { token } = req.body;
+  const service = req.service;
+  if (!service.can_tokenize)
+    return res.status(403).json({ error: "Not authorized to do this action." });
+  try {
+    const tokenEntry = await prisma.paymentToken.findUnique({
+      where: {
+        token: token,
+        is_active: true,
+      },
+      include: {
+        card: {
+          select: {
+            card_holder_name: true,
+            last_four_digits: true,
+            expiration_date: true,
+            type: true,
+          },
+        },
+      },
+    });
+    if (!tokenEntry)
+      return res.status(404).json({ error: "Token not found or inactive." });
 
-  if (
-    !serviceName ||
-    !allowedServices.includes(serviceName.trim().toLowerCase())
-  ) {
-    return res.status(403).json({ error: "Not authorized." });
+    const responseData = {
+      card_holder_name: tokenEntry.card.card_holder_name,
+      last_four_digits: tokenEntry.card.last_four_digits,
+      expiration_date: tokenEntry.card.expiration_date,
+      type: tokenEntry.card.type,
+    };
+    return res.status(200).json({ data: responseData });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Internal server error." });
   }
+}
+
+async function fetchPaymentData(req, res) {
   const token = req.body.token;
 
   if (!token) {
@@ -111,6 +200,37 @@ async function fetchPaymentData(req, res) {
       .json({ error: "Failed to decrypt data or internal error." });
   }
 }
+
+const toggleTokenStatus = async (req, res) => {
+  const { token } = req.body;
+  const service = req.service;
+
+  if (!token) return res.status(400).json({ error: "Token is required." });
+
+  try {
+    const tokenEntry = await prisma.paymentToken.findFirst({
+      where: { token: token, service_id: service.id },
+    });
+
+    if (!tokenEntry) return res.status(404).json({ error: "Token not found." });
+
+    const updatedToken = await prisma.paymentToken.update({
+      where: {
+        id: tokenEntry.id,
+      },
+      data: {
+        is_active: !tokenEntry.is_active,
+      },
+    });
+
+    res.json({
+      msg: `Token ${updatedToken.is_active ? "activated" : "deactivated"} successfully`,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+};
 
 const DeactivateCard = async (req, res) => {
   const body_token = req.body.token;
@@ -203,4 +323,6 @@ module.exports = {
   fetchPaymentData,
   DeactivateCard,
   ActivateCard,
+  getTokenData,
+  toggleTokenStatus,
 };
