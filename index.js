@@ -1,43 +1,45 @@
-require("dotenv").config();
-const { PrismaClient } = require("@prisma/client");
-const { PrismaPg } = require("@prisma/adapter-pg");
-const { Pool } = require("pg"); // Kell a pg Pool az adapterhez
-const cors = require("cors");
-const {
+import "dotenv/config";
+
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
+import cors from "cors";
+
+import express from "express";
+
+import {
   apiKeyAuth,
   authCanFetch,
   authCanManage,
   authCanTokenize,
-} = require("./src/middleware/apiKeyAuth");
-const {
+} from "./src/middleware/apiKeyAuth.js";
+
+import {
   tokenizeLimiter,
   globalLimiter,
   fetchLimiter,
-} = require("./src/middleware/rateLimiter");
-const {
+} from "./src/middleware/rateLimiter.js";
+
+import {
   tokenizePaymentData,
   fetchPaymentData,
   DeactivateCard,
   ActivateCard,
   getTokenData,
   toggleTokenStatus,
-} = require("./src/api/tokenController");
+} from "./src/api/tokenController.js";
 
-const {
+import {
   getServices,
   getServiceById,
   addService,
   updateService,
   changeServiceActiveness,
-} = require("./src/api/serviceController");
+} from "./src/api/serviceController.js";
+
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
-
-const express = require("express");
-const fs = require("fs");
-const https = require("https");
-const path = require("path");
 
 const app = express();
 const corsOptions = {
@@ -90,5 +92,6 @@ app.put(
 );
 
 app.listen(PORT, "0.0.0.0", () => {
+  console.log("FRONTEND_URL:", process.env.FRONTEND_URL);
   console.log(`Server running on port ${PORT}`);
 });
