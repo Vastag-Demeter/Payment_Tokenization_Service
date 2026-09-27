@@ -60,9 +60,8 @@ const PORT = process.env.PORT || 10000;
 app.use(express.json());
 const protect = apiKeyAuth({ headerName: "x-api-key" });
 
-app.get("/", (req, res) => {
+app.get("/health", (req, res) => {
   res.status(200).json({
-    message: "Payment Tokenization Service is Running",
     status: "OK",
   });
 });
